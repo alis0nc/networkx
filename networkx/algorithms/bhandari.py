@@ -66,11 +66,11 @@ def edge_disjoint_paths(G, source, target, weight='weight', count=None):
             edgelist.append((a, b))
             i+=1
         return edgelist
-      
+    paths=[]
     H = G.copy()
     # 1. Run the shortest path algorithm for the given pair of vertices
     shortest_path = nx.bellman_ford_path(H, source, target, weight)
-    if shortest_path = None:
+    if shortest_path is None:
         # oh no! you can't get there from here! :(
         return None
     # 2. Replace each edge of the shortest path (equivalent to two 
@@ -103,7 +103,18 @@ def edge_disjoint_paths(G, source, target, weight='weight', count=None):
             else:
                 pass
     edge_set -= overlap
-    print edge_set
+    # partitioning the set of edges into two distinct paths
+    # ugh, there's got to be a better way to do this
+    Q = nx.Graph()
+    for src, dst in edge_set:
+        Q.add_edge(src, dst)
+    p1 = nx.shortest_path(Q, source, target)
+    for src, dst in path_to_edgelist(p1):
+        Q.remove_edge(src, dst)
+    p2 = nx.shortest_path(Q, source, target)
+    paths.append(p1)
+    paths.append(p2)
+    return paths
 
 def bellman_ford_path(G, source, target=None, weight='weight'):
     """Compute shortest paths in the graph using Bellman-Ford algorithm. 
