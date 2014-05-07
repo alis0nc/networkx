@@ -70,24 +70,27 @@ def edge_disjoint_paths(G, source, target, weight='weight', count=None):
     H = G.to_directed() # working copy
     P = nx.DiGraph() # graph of paths
     # INF2 = \left\vertE\right\vert l_{max} + \epsilon
-    inf2 = (max(H.edges(data=True), key=lambda e: e[2][weight]))[2][weight]*H.number_of_edges() + 1
+    try:
+        inf2 = (max(H.edges(data=True), key=lambda e: e[2][weight]))[2][weight]*H.number_of_edges() + 1
+    except KeyError: # deal with unweighted graphs by treating each weight as 1
+        inf2 = H.number_of_edges() + 1
     # 1. For the pair of vertices under consideration, find the shortest
     #    path
     shortest_path = nx.shortest_path(H, source, target, weight)
     for s, t in path_to_edgelist(shortest_path):
         P.add_edge(s, t)
-    if not P:
-        # oh no! you can't get there from here! :(
-        return None
     # 2. Increment the length of each arc of the shortest path by INF2
     # 3. Make the oppositely directed arcs negative
     for s, t in P.edges_iter():
-        H[s][t][weight] += inf2
+        try:
+            H[s][t][weight] += inf2
+        except KeyError: # unweighted graphs
+            H[s][t][weight] = inf2
         try:
             H[t][s][weight] = -H[t][s][weight]
         except KeyError: # unweighted graphs
             H[t][s][weight] = -1
-    # 4. Run a shortest path algorithm again (this time,it has to deal 
+    # 4. Run a shortest path algorithm again (this time, it has to deal 
     #    with negative edges)
     new_path = nx.bellman_ford_path(H, source, target, weight)
     # 5. Remove interlacing edges and the desired pair of paths results
@@ -98,13 +101,11 @@ def edge_disjoint_paths(G, source, target, weight='weight', count=None):
             P.add_edge(s, t)
     print P.edges()
     # partitioning the set of edges into two distinct paths
-    # ugh, there's got to be a better way to do this
-    p1 = nx.shortest_path(P, source, target)
-    for src, dst in path_to_edgelist(p1):
-        P.remove_edge(src, dst)
-    p2 = nx.shortest_path(P, source, target)
-    paths.append(p1)
-    paths.append(p2)
+    while P.number_of_edges():
+        p = nx.shortest_path(P, source, target)
+        for src, dst in path_to_edgelist(p):
+            P.remove_edge(src, dst)
+        paths.append(p)
     return paths
 
 def bellman_ford_path(G, source, target=None, weight='weight'):
@@ -183,7 +184,8 @@ def bellman_ford_path(G, source, target=None, weight='weight'):
         paths=[]
         pred, dist = nx.bellman_ford(G, source, weight)
         # if you can't get there from here, don't bother trying
-        if not target in dist: return None
+        if not target in dist: 
+            raise nx.NetworkXNoPath("No path between %s and %s." % (source, target))
         while target is not None:
             # build the path
             paths.append(target)
