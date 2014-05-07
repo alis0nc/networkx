@@ -67,51 +67,46 @@ def edge_disjoint_paths(G, source, target, weight='weight', count=None):
             i+=1
         return edgelist
     paths=[]
-    H = G.copy()
+    H = G.to_directed() # working copy
+    P = nx.DiGraph() # graph of paths
     # 1. Run the shortest path algorithm for the given pair of vertices
-    shortest_path = nx.bellman_ford_path(H, source, target, weight)
-    if shortest_path is None:
+    shortest_path = nx.shortest_path(H, source, target, weight)
+    for s, t in path_to_edgelist(shortest_path):
+        P.add_edge(s, t)
+    if not P:
         # oh no! you can't get there from here! :(
         return None
     # 2. Replace each edge of the shortest path (equivalent to two 
     #    oppositely directed arcs) by a single arc directed towards the 
     #    source vertex
     # 3. Make the length of each of the above arcs negative
-    shortest_path = path_to_edgelist(shortest_path)
-    print shortest_path
-    for a, b in shortest_path:
-        H.remove_edge(a, b)
-        H[b][a][weight] = -1
+    H.remove_edges_from(e for e in P.edges_iter() if e in H.edges_iter())
+    for a, b in P.edges_iter():
+        try:
+            H[b][a][weight] = -H[b][a][weight]
+        except KeyError: # unweighted graphs
+            H[b][a][weight] = -1
     # 4. Run the shortest path algorithm again
     new_path = nx.bellman_ford_path(H, source, target, weight)
     if new_path is None:
         # oh no! we have a bridge! :(
         return [shortest_path]
-    new_path = path_to_edgelist(new_path)
-    print new_path
     # 5. Erase the overlapping edges of the two paths found, and reverse
     #    the direction of the remaining arcs on the first shortest path 
     #    such that each arc on it is directed towards the sink vertex 
     #    now. The desired pair of paths results.
-    edge_set = set(shortest_path) ^ set(new_path)
-    overlap = set()
-    for e1 in shortest_path:
-        for e2 in new_path:
-            if (e1[0]==e2[0] and e1[1]==e2[1]) or (e1[0]==e2[1] and e1[1]==e2[0]):
-                overlap.add(e1)
-                overlap.add(e2)
-            else:
-                pass
-    edge_set -= overlap
+    for s, t in path_to_edgelist(new_path):
+        if P.has_edge(t, s):
+            P.remove_edge(t, s)
+        else:
+            P.add_edge(s, t)
+    print P.edges()
     # partitioning the set of edges into two distinct paths
     # ugh, there's got to be a better way to do this
-    Q = nx.Graph()
-    for src, dst in edge_set:
-        Q.add_edge(src, dst)
-    p1 = nx.shortest_path(Q, source, target)
+    p1 = nx.shortest_path(P, source, target)
     for src, dst in path_to_edgelist(p1):
-        Q.remove_edge(src, dst)
-    p2 = nx.shortest_path(Q, source, target)
+        P.remove_edge(src, dst)
+    p2 = nx.shortest_path(P, source, target)
     paths.append(p1)
     paths.append(p2)
     return paths
