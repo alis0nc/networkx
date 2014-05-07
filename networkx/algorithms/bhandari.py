@@ -6,10 +6,10 @@
 import heapq
 import networkx as nx
 __author__ = """\n""".join(['Alison Chan <alisonc@alisonc.net>'])
-__all__ = ['edge_disjoint_paths', 'bellman_ford_path']
+__all__ = ['edge_disjoint_pair', 'bellman_ford_path']
 
-def edge_disjoint_paths(G, source, target, weight='weight', count=None):
-    """Generate edge-disjoint paths from source to target. 
+def edge_disjoint_pair(G, source, target, weight='weight'):
+    """Generate edge-disjoint pair of paths from source to target. 
     
     Two paths are edge-disjoint if they have no edges in common.
 
@@ -26,16 +26,12 @@ def edge_disjoint_paths(G, source, target, weight='weight', count=None):
     weight : string, optional
         Edge attribute to use as weight
 
-    count : integer, optional
-        How many disjoint paths to generate and return
-
     Returns
     -------
     paths: list
        A list of disjoint paths, each represented as a list. If there 
        are no paths between source and target, the empty list will be 
-       returned. If there are fewer disjoint paths than the given count, 
-       as many paths as do exist will be returned.
+       returned.
 
     Examples
     --------
@@ -68,7 +64,7 @@ def edge_disjoint_paths(G, source, target, weight='weight', count=None):
         return edgelist
     paths=[]
     H = G.to_directed() # working copy
-    P = nx.DiGraph() # graph of paths
+    P = nx.MultiDiGraph() # graph of paths
     # INF2 = \left\vertE\right\vert l_{max} + \epsilon
     try:
         inf2 = (max(H.edges(data=True), key=lambda e: e[2][weight]))[2][weight]*H.number_of_edges() + 1
