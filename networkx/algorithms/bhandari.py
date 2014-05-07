@@ -43,7 +43,7 @@ def edge_disjoint_paths(G, source, target, weight='weight', count=None):
 
     Notes
     -----
-    This algorithm uses a modified version of Algorithm 3.1 given in 
+    This algorithm uses a modified version of Algorithm 4.1 given in 
     [1]_. Instead of BFS or (modified) Dijkstra, it uses Bellman-Ford 
     shortest path algorithm.
 
@@ -69,32 +69,28 @@ def edge_disjoint_paths(G, source, target, weight='weight', count=None):
     paths=[]
     H = G.to_directed() # working copy
     P = nx.DiGraph() # graph of paths
-    # 1. Run the shortest path algorithm for the given pair of vertices
+    # INF2 = \left\vertE\right\vert l_{max} + \epsilon
+    inf2 = (max(H.edges(data=True), key=lambda e: e[2][weight]))[2][weight]*H.number_of_edges() + 1
+    # 1. For the pair of vertices under consideration, find the shortest
+    #    path
     shortest_path = nx.shortest_path(H, source, target, weight)
     for s, t in path_to_edgelist(shortest_path):
         P.add_edge(s, t)
     if not P:
         # oh no! you can't get there from here! :(
         return None
-    # 2. Replace each edge of the shortest path (equivalent to two 
-    #    oppositely directed arcs) by a single arc directed towards the 
-    #    source vertex
-    # 3. Make the length of each of the above arcs negative
-    H.remove_edges_from(e for e in P.edges_iter() if e in H.edges_iter())
-    for a, b in P.edges_iter():
+    # 2. Increment the length of each arc of the shortest path by INF2
+    # 3. Make the oppositely directed arcs negative
+    for s, t in P.edges_iter():
+        H[s][t][weight] += inf2
         try:
-            H[b][a][weight] = -H[b][a][weight]
+            H[t][s][weight] = -H[t][s][weight]
         except KeyError: # unweighted graphs
-            H[b][a][weight] = -1
-    # 4. Run the shortest path algorithm again
+            H[t][s][weight] = -1
+    # 4. Run a shortest path algorithm again (this time,it has to deal 
+    #    with negative edges)
     new_path = nx.bellman_ford_path(H, source, target, weight)
-    if new_path is None:
-        # oh no! we have a bridge! :(
-        return [shortest_path]
-    # 5. Erase the overlapping edges of the two paths found, and reverse
-    #    the direction of the remaining arcs on the first shortest path 
-    #    such that each arc on it is directed towards the sink vertex 
-    #    now. The desired pair of paths results.
+    # 5. Remove interlacing edges and the desired pair of paths results
     for s, t in path_to_edgelist(new_path):
         if P.has_edge(t, s):
             P.remove_edge(t, s)
