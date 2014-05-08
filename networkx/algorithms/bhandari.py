@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#    Copyright (C) 2012 by
+#    Copyright (C) 2014 by
 #    Alison Chan <alisonc@alisonc.net>
 #    All rights reserved.
 #    BSD license.
