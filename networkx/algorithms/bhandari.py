@@ -8,7 +8,7 @@ import networkx as nx
 __author__ = """\n""".join(['Alison Chan <alisonc@alisonc.net>'])
 __all__ = ['edge_disjoint_pair', 'bellman_ford_path']
 
-def edge_disjoint_pair(G, source, target, weight='weight'):
+def edge_disjoint_pair(G, source, target, weight='weight', fully_disjoint=False):
     """Generate edge-disjoint pair of paths from source to target. 
     
     Two paths are edge-disjoint if they have no edges in common.
@@ -24,7 +24,10 @@ def edge_disjoint_pair(G, source, target, weight='weight'):
        Ending node for path
        
     weight : string, optional
-        Edge attribute to use as weight
+        Edge attribute to use as weight (defaults to 'weight')
+        
+    fully_disjoint : boolean, optional
+        Require the paths not to share _any_ edges (defaults to False)
 
     Returns
     -------
@@ -93,6 +96,9 @@ def edge_disjoint_pair(G, source, target, weight='weight'):
     for s, t in path_to_edgelist(new_path):
         if P.has_edge(t, s):
             P.remove_edge(t, s)
+        elif P.has_edge(s, t) and fully_disjoint:
+            # the two paths share an edge!
+            raise nx.NetworkXNoPath("No fully disjoint paths between %s and %s." % (source, target))
         else:
             P.add_edge(s, t)
     print P.edges()
