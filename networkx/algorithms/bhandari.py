@@ -8,6 +8,26 @@ import networkx as nx
 __author__ = """\n""".join(['Alison Chan <alisonc@alisonc.net>'])
 __all__ = ['edge_disjoint_pair', 'bellman_ford_path']
 
+
+def path_to_edgelist(path):
+    # there is probably a more pythonic way to do this
+    edgelist=[]
+    i=1
+    while i < len(path):
+        a,b = path[i-1],path[i]
+        edgelist.append((a, b))
+        i+=1
+    return edgelist
+   
+def partition(P, source, target):
+    paths = []
+    while P.number_of_edges():
+        p = nx.shortest_path(P, source, target)
+        for src, dst in path_to_edgelist(p):
+            P.remove_edge(src, dst)
+        paths.append(p)
+    return paths
+
 def edge_disjoint_pair(G, source, target, weight='weight', fully_disjoint=False):
     """Generate edge-disjoint pair of paths from source to target. 
     
@@ -55,17 +75,6 @@ def edge_disjoint_pair(G, source, target, weight='weight', fully_disjoint=False)
     --------
     all_shortest_paths, shortest_path
     """
-    
-    def path_to_edgelist(path):
-        # there is probably a more pythonic way to do this
-        edgelist=[]
-        i=1
-        while i < len(path):
-            a,b = path[i-1],path[i]
-            edgelist.append((a, b))
-            i+=1
-        return edgelist
-    paths=[]
     H = G.to_directed() # working copy
     P = nx.MultiDiGraph() # graph of paths
     # INF2 = \left\vertE\right\vert l_{max} + \epsilon
@@ -101,13 +110,9 @@ def edge_disjoint_pair(G, source, target, weight='weight', fully_disjoint=False)
             raise nx.NetworkXNoPath("No fully disjoint paths between %s and %s." % (source, target))
         else:
             P.add_edge(s, t)
-    print P.edges()
+    #print P.edges()
     # partitioning the set of edges into two distinct paths
-    while P.number_of_edges():
-        p = nx.shortest_path(P, source, target)
-        for src, dst in path_to_edgelist(p):
-            P.remove_edge(src, dst)
-        paths.append(p)
+    paths = partition(P, source, target)
     return paths
 
 def bellman_ford_path(G, source, target=None, weight='weight'):
