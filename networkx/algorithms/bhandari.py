@@ -112,7 +112,7 @@ def edge_disjoint_pair(G, source, target, weight='weight', fully_disjoint=False)
 def node_disjoint_pair(G, source, target, weight='weight', fully_disjoint=False):
     """Generate maximally node-disjoint pair of paths from source to target. 
     
-    Two paths are node-disjoint if they have no edges in common.
+    Two paths are node-disjoint if they have no nodes in common.
 
     Parameters
     ----------
@@ -156,6 +156,9 @@ def node_disjoint_pair(G, source, target, weight='weight', fully_disjoint=False)
     --------
     all_shortest_paths, shortest_path
     """
+    # FIXME: this relies on nodes being strings because of how it 
+    # labels the ' and '' split vertices :(
+    
     H = G.to_directed() # working copy
     P = nx.MultiDiGraph() # graph of paths    
     # transform to weighted so algorithms work
@@ -209,10 +212,13 @@ def node_disjoint_pair(G, source, target, weight='weight', fully_disjoint=False)
     # 5. Run a shortest path algorithm again (this time, it has to deal 
     #    with negative edges)
     new_path = nx.bellman_ford_path(H, source, target, weight)
-    # Coalesce all split nodes
-    
     # 6. Remove interlacing edges and the desired pair of paths results
+    # coalescing split nodes here too
     for s, t in path_to_edgelist(new_path):
+        if str(s).startswith('p_'): s = str(s)[2:]
+        if str(s).startswith('pp_'): s = str(s)[3:]
+        if str(t).startswith('p_'): t = str(t)[2:]
+        if str(t).startswith('pp_'): t = str(t)[3:]
         if P.has_edge(t, s):
             P.remove_edge(t, s)
         elif P.has_edge(s, t) and fully_disjoint:
