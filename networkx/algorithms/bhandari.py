@@ -103,12 +103,16 @@ def edge_disjoint_paths(G, source, target, weight='weight', numpaths=2, fully_di
         #    path
         shortest_path = nx.bellman_ford_path(H, source, target, weight)
         # remove interlacing edges of path
+        if fully_disjoint:
+            fully_disjoint_now = True
+            for s, t in path_to_edgelist(shortest_path):
+                if (s, t) in P.edges():
+                    # if we have parallel edges, bail out with what we've got
+                    fully_disjoint_now = False
+            if not fully_disjoint_now: break
         for s, t in path_to_edgelist(shortest_path):
             if P.has_edge(t, s):
                 P.remove_edge(t, s)
-            elif P.has_edge(s, t) and fully_disjoint:
-                # the two paths share an edge!
-                raise nx.NetworkXNoPath("No fully disjoint paths between %s and %s." % (source, target))
             else:
                 P.add_edge(s, t)
         numpaths -= 1
