@@ -6,7 +6,7 @@
 import heapq
 import networkx as nx
 __author__ = """\n""".join(['Alison Chan <alisonc@alisonc.net>'])
-__all__ = ['edge_disjoint_pair', 'node_disjoint_pair', 'bellman_ford_path']
+__all__ = ['edge_disjoint_paths', 'node_disjoint_pair', 'bellman_ford_path']
 
 
 def path_to_edgelist(path):
@@ -28,8 +28,8 @@ def partition(P, source, target):
         paths.append(p)
     return paths
 
-def edge_disjoint_pair(G, source, target, weight='weight', fully_disjoint=False):
-    """Generate maximally edge-disjoint pair of paths from source to target. 
+def edge_disjoint_paths(G, source, target, weight='weight', numpaths=2, fully_disjoint=False):
+    """Generate maximally edge-disjoint paths from source to target. 
     
     Two paths are edge-disjoint if they have no edges in common.
 
@@ -46,6 +46,12 @@ def edge_disjoint_pair(G, source, target, weight='weight', fully_disjoint=False)
     weight : string, optional
         Edge attribute to use as weight (defaults to 'weight')
         
+    numpaths : integer, optional
+        Maximum number of disjoint paths to return.
+        -1 means unlimited.
+        It is an error to specify unlimited paths without enforcing 
+        full disjointness.
+               
     fully_disjoint : boolean, optional
         Require the paths not to share _any_ edges (defaults to False)
 
@@ -75,37 +81,40 @@ def edge_disjoint_pair(G, source, target, weight='weight', fully_disjoint=False)
     --------
     all_shortest_paths, shortest_path
     """
-    H = G.to_directed() # working copy
-    P = nx.MultiDiGraph() # graph of paths
+    if numpaths < 0 and not fully_disjoint:
+        raise ValueError('numpaths must be limited (> 0) if fully_disjoint is False')
+        
+    J = G.to_directed() # working copy
     # transform to weighted so algorithms work
-    for s, t in H.edges_iter():
-        if weight not in H[s][t]:
-            H[s][t][weight] = 1
+    for s, t in J.edges_iter():
+        if weight not in J[s][t]:
+            J[s][t][weight] = 1
     # INF2 = \left\vertE\right\vert l_{max} + \epsilon
-    inf2 = (max(H.edges(data=True), key=lambda e: e[2][weight]))[2][weight]*H.number_of_edges() + 1
-    # 1. For the pair of vertices under consideration, find the shortest
-    #    path
-    shortest_path = nx.shortest_path(H, source, target, weight)
-    P.add_edges_from(path_to_edgelist(shortest_path))
-    # 2. Increment the length of each arc of the shortest path by INF2
-    # 3. Make the oppositely directed arcs negative
-    for s, t in P.edges_iter():
-        H[s][t][weight] += inf2
-        H[t][s][weight] = -H[t][s][weight]
-    # 4. Run a shortest path algorithm again (this time, it has to deal 
-    #    with negative edges)
-    new_path = nx.bellman_ford_path(H, source, target, weight)
-    # 5. Remove interlacing edges and the desired pair of paths results
-    for s, t in path_to_edgelist(new_path):
-        if P.has_edge(t, s):
-            P.remove_edge(t, s)
-        elif P.has_edge(s, t) and fully_disjoint:
-            # the two paths share an edge!
-            raise nx.NetworkXNoPath("No fully disjoint paths between %s and %s." % (source, target))
-        else:
-            P.add_edge(s, t)
+    inf2 = (max(J.edges(data=True), key=lambda e: e[2][weight]))[2][weight]*J.number_of_edges() + 1
+    P = nx.MultiDiGraph() # graph of paths
+    while numpaths:
+        H = J.copy() # working copy of G after weight transformations
+        # 2. Increment the length of each arc of the shortest path by INF2
+        # 3. Make the oppositely directed arcs negative
+        for s, t in P.edges_iter():
+            H[s][t][weight] += inf2
+            H[t][s][weight] = -H[t][s][weight]
+        # 1. For the pair of vertices under consideration, find the shortest
+        #    path
+        shortest_path = nx.bellman_ford_path(H, source, target, weight)
+        # remove interlacing edges of path
+        for s, t in path_to_edgelist(shortest_path):
+            if P.has_edge(t, s):
+                P.remove_edge(t, s)
+            elif P.has_edge(s, t) and fully_disjoint:
+                # the two paths share an edge!
+                raise nx.NetworkXNoPath("No fully disjoint paths between %s and %s." % (source, target))
+            else:
+                P.add_edge(s, t)
+        numpaths -= 1
+    
     #print P.edges()
-    # partitioning the set of edges into two distinct paths
+    # partitioning the set of edges into distinct paths
     paths = partition(P, source, target)
     return paths
     
